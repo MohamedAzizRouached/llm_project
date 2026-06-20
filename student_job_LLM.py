@@ -40,7 +40,7 @@ MODEL_NAME = "mistralai/Mistral-Small-3.2-24B-Instruct-2506"
 
 INPUT_FILE  = "reddit_comments.csv"
 OUTPUT_FILE = "reddit_sentiment.csv"
-LIMIT       = 2_000   # set to None to process all ~100k rows on Leonardo
+LIMIT       = None   # set to None to process all ~100k rows on Leonardo
 MAX_WORKERS = 8       # parallel LLM calls
 
 # ── LLM setup ──────────────────────────────────────────────────────────────────
