@@ -31,15 +31,12 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 # ── Config ─────────────────────────────────────────────────────────────────────
-# Local dev: point to OpenAI
-API_KEY    = os.environ.get("OPENAI_API_KEY", "your-openai-api-key-here")
-BASE_URL   = None
-MODEL_NAME = "gpt-4o-mini"
+# Local dev: point to OpenA
 
 # Leonardo: uncomment these and comment the three lines above
-# API_KEY    = "bUon34Bu3o#2"
-# BASE_URL   = "http://127.0.0.1:8000/v1"
-# MODEL_NAME = "google/gemma-4-31B-it"
+API_KEY    = "password"
+BASE_URL   = "http://10.7.0.164:8000/v1"
+MODEL_NAME = "mistralai/Mistral-Small-3.2-24B-Instruct-2506"
 
 INPUT_FILE  = "reddit_comments.csv"
 OUTPUT_FILE = "reddit_sentiment.csv"
@@ -139,20 +136,28 @@ def score_to_int(label: str, score: float) -> int:
 
 
 def run_sentiment(df: pd.DataFrame) -> pd.DataFrame:
-    """Run local sentiment model on all relevant comments."""
-    sentiment_model = hf_pipeline(
-        "sentiment-analysis",
-        model="cardiffnlp/twitter-roberta-base-sentiment-latest",
-        truncation=True,
-        max_length=512,
-    )
+    """Use the LLM to score sentiment on all relevant comments."""
+    
+    class Sentiment(BaseModel):
+        score: int  # -2, -1, 0, 1, or 2
+
+    sentiment_chain = llm.with_structured_output(Sentiment)
+    SENTIMENT_PROMPT = """Score the sentiment of this Reddit comment about a stock.
+Return an integer: 2=very positive, 1=positive, 0=neutral, -1=negative, -2=very negative."""
+
+    def get_score(comment):
+        try:
+            r = sentiment_chain.invoke([
+                {"role": "system", "content": SENTIMENT_PROMPT},
+                {"role": "user", "content": comment}
+            ])
+            return r.score
+        except:
+            return 0
+
     df = df.copy()
-    df["sentiment"] = df["comments"].apply(
-        lambda c: score_to_int(**{k: v for k, v in zip(["label", "score"], [sentiment_model(c)[0]["label"], sentiment_model(c)[0]["score"]])})
-    )
+    df["sentiment"] = df["comments"].apply(get_score)
     return df
-
-
 def compute_daily_metrics(df: pd.DataFrame) -> pd.DataFrame:
     """Compute daily min/max/avg sentiment per ticker."""
     return (
